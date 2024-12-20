@@ -69,7 +69,7 @@ FILE_FORMAT = (TYPE = 'CSV' SKIP_HEADER = 1);
 V prípade nekonzistentných záznamov bol použitý parameter `ON_ERROR = 'CONTINUE'`, ktorý zabezpečil pokračovanie procesu bez prerušenia pri chybách.
 
 ---
-### **3.1 Transfor (Transformácia dát)**
+### **3.1 Transform (Transformácia dát)**
 
 V tejto fáze boli dáta zo staging tabuliek vyčistené, transformované a obohatené. Hlavným cieľom bolo pripraviť dimenzie a faktovú tabuľku, ktoré umožnia jednoduchú a efektívnu analýzu.
 
