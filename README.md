@@ -69,7 +69,7 @@ FILE_FORMAT = (TYPE = 'CSV' SKIP_HEADER = 1);
 V prípade nekonzistentných záznamov bol použitý parameter `ON_ERROR = 'CONTINUE'`, ktorý zabezpečil pokračovanie procesu bez prerušenia pri chybách.
 
 ---
-### **3.1 Transform (Transformácia dát)**
+### **3.2 Transform (Transformácia dát)**
 
 V tejto fáze boli dáta zo staging tabuliek vyčistené, transformované a obohatené. Hlavným cieľom bolo pripraviť dimenzie a faktovú tabuľku, ktoré umožnia jednoduchú a efektívnu analýzu.
 
@@ -167,3 +167,94 @@ DROP TABLE ratings_staging;
 ETL proces v Snowflake umožnil spracovanie pôvodných dát z `.csv` formátu do viacdimenzionálneho modelu typu hviezda. Tento proces zahŕňal čistenie, obohacovanie a reorganizáciu údajov. Výsledný model umožňuje analýzu čitateľských preferencií a správania používateľov, pričom poskytuje základ pre vizualizácie a reporty.
 
 ---
+
+## **4 Vizualizácia dát**
+
+Dashboard obsahuje `6 vizualizácií`, ktoré poskytujú základný prehľad o kľúčových metrikách a trendoch týkajúcich sa filmov, používateľov a hodnotení. Tieto vizualizácie odpovedajú na dôležité otázky a umožňujú lepšie pochopiť správanie používateľov a ich preferencie.
+
+<p align="center">
+  <img src="https://github.com/filippresnajder/movielens/blob/main/movielens_dashboard.png" alt="Dashboard">
+  <br>
+  <em>Obrázok 3 Dashboard Movielens datasetu</em>
+</p>
+
+---
+### **Graf 1: 10 Najviac hodnotených filmov**
+Táto vizualizácia zobrazuje 10 filmov s najväčším počtom hodnotení. Umožňuje identifikovať najpopulárnejšie filmy medzi používateľmi. Z grafu vieme zistiť napríklad, že filmy Star Wars sú najviac hodnotené, na základe tohoto môžeme spraviť odporúčania pre napr. jednotlivé série filmov.
+
+```sql
+SELECT m.title AS Movie_Name, COUNT(ratingid) AS Total_Ratings
+FROM fact_ratings f
+JOIN dim_movies m ON m.movie_id = f.movie_id
+GROUP BY Movie_Name
+ORDER BY Total_Ratings DESC
+LIMIT 10;
+```
+---
+### **Graf 2: Podiel hodnotení podľa pohlaví**
+Graf znázorňuje rozdiely v počte hodnotení medzi mužmi a ženami. Z údajov je zrejmé, že muži hodnotili filmy výrazne viac. Táto vizualizácia ukazuje, že obsah alebo kampane by museli byť zamerané skôr na jedno pohlavie, prípadne by bolo možné aj zamerať kampaň na získanie viac používateľov ženského pohlavia.
+
+```sql
+SELECT u.gender, COUNT(r.ratingid) AS Pocet
+FROM fact_ratings r
+JOIN dim_users u ON u.dim_userid = r.user_id
+GROUP BY u.gender;
+```
+---
+### **Graf 3: 15 Najlepšie hodnotených filmov podľa priemerného hodnotenia**
+Graf ukazuje, ktoré filmy boli najlepšie hodnotené na základe priemerného hodnotenia, z vizualizácie je vidieť, že filmov s perfektným hodnotením je málo. Tento trend môže naznačovať kvalitu filmov, ktoré môžu byť odporúčané používateľom na ich zhliadnutie.
+
+```sql
+SELECT m.title AS Film, ROUND(AVG(r.rating),2) AS Priemerne_Hodnotenie
+FROM fact_ratings r
+JOIN dim_movies m ON m.movie_id = r.movie_id
+GROUP BY Film
+ORDER BY Priemerne_Hodnotenie DESC
+LIMIT 15;
+```
+---
+### **Graf 4: Povolania, ktoré hodnotili filmy najviac**
+Tento graf poskytuje informácie o piatich povolaní, ktoré hodnotia filmy najviac. Umožňuje zistovať, ktoré profesie najviac hodnototia a sledujú filmy a ako môžu byť tieto skupiny zacielené pri vytváraní personalizovaných odporúčaní. Z údajov je zrejmé, že najaktívnejšími profesijnými skupinami sú `Educator` a `Executive`, ak odmyslíme ľudí, ktorí buď nemajú alebo majú nezahrnuté povolanie. 
+
+```sql
+SELECT u.occupation AS Povolanie, COUNT(r.ratingid) AS Pocet
+FROM fact_ratings r
+JOIN dim_users u ON u.dim_userid = r.user_id
+GROUP BY Povolanie
+ORDER BY Pocet DESC
+LIMIT 5;
+```
+---
+### **Graf 5: Najaktívnejšie mesiace na základe hodnotenia**
+Tento graf ukazuje, v ktorých mesiacov sú uživateľia najviac aktívny. Z grafu vieme usúdiť,
+že v mesiaci November sú používateľia suverénne najviac aktívny. Na základe týchto údajov vieme
+nastaviť v akom období, budeme propagovať filmy najviac alebo kedy sa nám oplatí aplikovať
+naše marketingové stratégie v praxi.
+
+```sql
+SELECT d.month_string AS Mesiac, COUNT(r.ratingid) AS Pocet
+FROM fact_ratings r
+JOIN dim_date d ON d.dim_dateid = r.date_id
+GROUP BY Mesiac
+ORDER BY Pocet DESC;
+```
+---
+### **Graf 6: Rozdelenie hodnotení podľa vekových kategórii v daných časových údajoch**
+Tento stĺpcový graf ukazuje, ako sa aktivita používateľov mení počas dňa (dopoludnia vs. popoludnia) a ako sa líši medzi rôznymi vekovými skupinami. Z grafu vyplýva, že vekové kategórie v rozmedzí 25 až 34 rokov sú s prehľadom najviac aktívne a následne, čím je veková kategória staršia, tým aj klesá aj počet hodnotení. Tieto informácie môžu pomôcť lepšie zacieliť obsah a naplánovať ho pre jednotlivé vekové kategórie.
+```sql
+SELECT t.ampm AS Casovy_Udaj,
+       u.age_group AS Vekova_Kategoria,
+       COUNT(r.ratingid) AS Pocet
+FROM fact_ratings r
+JOIN dim_users u ON u.dim_userid = r.user_id
+JOIN dim_time t ON t.dim_timeid = r.time_id
+GROUP BY casovy_udaj, vekova_kategoria
+ORDER BY casovy_udaj, Pocet DESC;
+
+```
+
+Dashboard poskytuje komplexný pohľad na dáta, pričom zodpovedá dôležité otázky týkajúce sa sledovateľských preferencií a správania používateľov. Vizualizácie umožňujú jednoduchú interpretáciu dát a môžu byť využité na optimalizáciu odporúčacích systémov, marketingových stratégií a filmových služieb.
+
+---
+
+**Autor:** Filip Prešnajder
