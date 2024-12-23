@@ -67,7 +67,6 @@ Tabuľka `genres` obsahuje atribúty:
 Surové dáta sú usporiadané v relačnom modeli, ktorý je znázornený na **entitno-relačnom diagrame (ERD)**:
 
 <p align="center">
-  <img src="https://github.com/filippresnajder/movielens/blob/main/erd_schema.png" alt="ERD Schema">
   <br>
   <em>Obrázok 1 Entitno-relačná schéma MovieLens</em>
 </p>
@@ -85,7 +84,6 @@ Navrhnutý bol **hviezdicový model (star schema)**, pre efektívnu analýzu kde
 
 <p align="center">
   <br>
-  <img src="https://github.com/filippresnajder/movielens/blob/main/star_schema.png" alt="Star Schema">
   <br>
   <em>Obrázok 2 Schéma hviezdy pre MovieLens</em>
 </p>
@@ -243,7 +241,6 @@ ETL proces v Snowflake umožnil spracovanie pôvodných dát z `.csv` formátu d
 Dashboard obsahuje `5 vizualizácií`, ktoré poskytujú základný prehľad o kľúčových metrikách a trendoch týkajúcich sa filmov, používateľov a hodnotení. Tieto vizualizácie odpovedajú na dôležité otázky a umožňujú lepšie pochopiť správanie používateľov a ich preferencie.
 
 <p align="center">
-  <img src="https://github.com/filippresnajder/movielens/blob/main/movielens_dashboard.png" alt="Dashboard">
   <br>
   <em>Obrázok 3 Dashboard Movielens datasetu</em>
 </p>
