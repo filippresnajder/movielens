@@ -20,13 +20,56 @@ Zdrojové dáta pochádzajú z Grouplens datasetu dostupného [tu](https://group
 ---
 ### **1.1 Dátová architektúra**
 
+Tabuľka `users` obsahuje atribúty:
+- id, typu INT, ktorý je primárny kľúč
+- age, typu INT, ktorý je cudzím kľučom tabuľky age_group
+- gender typu CHAR, ktorý drží 1 znak označujúci pohlavie uživateľa (M - Male / F - Female)
+- zip_code typu VARCHAR, ktorý drží poštové smerovacie číslo užívateľa
+- occupation_id typu INT, ktorý je cudzím kľúčom tabuľky occupations
+
+Tabuľka `ratings` obsahuje atribúty:
+- id, typu INT, ktorý je primárny kľúč
+- user_id, typu INT, ktorý je cudzím kľúčom tabuľy users
+- movie_id, typu INT, ktorý je cudzím kľúčom tabuľky movies
+- rating, typu INT, ktorý ukľadá číselnú hodnotu (od 1 po 5), ktorá predstavuje hodnotenie daného filmu
+- rated_at, typu DATETIME, ktorý ukladá údaj o dni a čase, kedy bolo hodnotenie uskutočnené
+
+Tabuľka `tags` je spojovacia tabuľka pre tabuľku `users` a `movies`, ktorá obsahuje atribúty:
+- id, typu INT, ktorý je primárny kľúč
+- user_id, typu INT, ktorý je cudzím kľúčom tabuľy users
+- movie_id, typu INT, ktorý je cudzím kľúčom tabuľky movies
+- tags, typue VARCHAR, ktorý ukladá jednotlivé tagy, ktoré uživatelia zanechali k danému filmu
+- created_at, typu DATETIME, ktorý ukladá údaj o dni a čase, kedy bol tag pridaný
+
+Tabuľka `movies` obsahuje atribúty:
+- id, typu INT, ktorý je primárny kľúč
+- title, typu VARCHAR, ktorý ukladá názov daného filmu
+- release_year, typu CHAR, ktorý ukladá rok, v ktorom daný film vyšiel
+
+Tabuľka `age_group` obsahuje atribúty:
+- id, typu INT, ktorý je primárny kľúč
+- name, typu VARCHAR, ktorý udržiava názov danej vekovej skupiny (Pod 18 rokov, 18-24 rokov, ...)
+
+Tabuľka `occupations` obsahuje atribúty:
+- id, typu INT, ktorý je primárny kľúč
+- name, typu VARCHAR, ktorý udržiava názov daného povolania
+
+Tabuľka `genres_movies` je spojovacia tabuľka pre tabuľku `genres` a `movies` obsahuje atribúty:
+- id, typu INT, ktorý je primárny kľúč
+- movie_id, typu INT, ktorý je cudzím kľúčom tabuľy movies
+- genre_id, typu INT, ktorý je cudzím kľúčom tabuľky genres
+
+Tabuľka `genres` obsahuje atribúty:
+- id, typu INT, ktorý je primárny kľúč
+- name, typu VARCHAR, ktorý udržiava názov daného žánru
+
 ### **ERD diagram**
 Surové dáta sú usporiadané v relačnom modeli, ktorý je znázornený na **entitno-relačnom diagrame (ERD)**:
 
 <p align="center">
   <img src="https://github.com/filippresnajder/movielens/blob/main/erd_schema.png" alt="ERD Schema">
   <br>
-  <em>Obrázok 1 Entitno-relačná schéma AmazonBooks</em>
+  <em>Obrázok 1 Entitno-relačná schéma MovieLens</em>
 </p>
 
 ---
@@ -34,16 +77,16 @@ Surové dáta sú usporiadané v relačnom modeli, ktorý je znázornený na **e
 
 Navrhnutý bol **hviezdicový model (star schema)**, pre efektívnu analýzu kde centrálny bod predstavuje faktová tabuľka **`fact_ratings`**, ktorá je prepojená s nasledujúcimi dimenziami:
 - **`dim_users`**: Obsahuje informácie o uživateľoch (pohlavie, veková skupina, povolanie).
-- **`dim_movies`**: Obsahuje podrobnejšie informácie o filmoch (názov, rok vydania, žánre).
-- **`dim_date`**: Zahrňuje informácie o dátumoch hodnotení (deň, mesiac, rok).
-- **`dim_time`**: Obsahuje podrobné časové údaje (hodina, AM/PM).
+- **`dim_movies`**: Obsahuje podrobnejšie informácie o filmoch (názov, rok vydania, žánre, tagy).
+- **`dim_date`**: Zahrňuje informácie o dátumoch hodnotení (dátum, deň, mesiac, rok, týždeň, deň v týždni, deň v týždni ako reťazec, mesiac ako reťazec).
+- **`dim_time`**: Obsahuje podrobné časové údaje (čas, hodina).
 
 Štruktúra hviezdicového modelu je znázornená na diagrame nižšie. Diagram ukazuje prepojenia medzi faktovou tabuľkou a dimenziami, čo zjednodušuje pochopenie a implementáciu modelu.
 
 <p align="center">
   <img src="https://github.com/filippresnajder/movielens/blob/main/star_schema.png" alt="Star Schema">
   <br>
-  <em>Obrázok 2 Schéma hviezdy pre AmazonBooks</em>
+  <em>Obrázok 2 Schéma hviezdy pre MovieLens</em>
 </p>
 
 ---
@@ -58,7 +101,7 @@ Dáta zo zdrojového datasetu (formát `.csv`) boli najprv nahraté do Snowflake
 ```sql
 CREATE OR REPLACE STAGE my_stage;
 ```
-Do stage boli následne nahraté súbory obsahujúce údaje o knihách, používateľoch, hodnoteniach, zamestnaniach a úrovniach vzdelania. Dáta boli importované do staging tabuliek pomocou príkazu `COPY INTO`. Pre každú tabuľku sa použil podobný príkaz:
+Do stage boli následne nahraté súbory obsahujúce údaje o filmoch, používateľoch, hodnoteniach a zamestnaniach. Dáta boli importované do staging tabuliek pomocou príkazu `COPY INTO`. Pre každú tabuľku sa použil podobný príkaz:
 
 ```sql
 COPY INTO occupations_staging
@@ -85,6 +128,22 @@ FROM users_staging u
 JOIN age_group_staging a ON u.age = a.age_group_id
 JOIN occupations_staging o ON u.occupation_id = o.occupation_id;
 ```
+
+Dimenzia `dim_movies` obsahuje údaje o filmoch, ako sú názov, rok vydania, žánre a tagy. Táto dimenzia je typu SCD Typ 1, nakoľko údaje môžu byť aktualizované, napríklad tak, že užívateľ pridá nový tag filmu. Dôležité je povšimnúť si `LEFT JOIN` pri tags_staging. Toto je z dôvodu, že film, má napríklad vždy nejaký žáner, ale môže sa stať prípad, kde žiaden uživateľ nezadal filmu žiaden tag, takže musíme ošetriť aj záznamy, ktoré su `NULL`.
+```sql
+CREATE TABLE dim_movies AS
+SELECT DISTINCT
+    m.movie_id AS movie_id,
+    m.title AS title,
+    m.release_year AS release_year,
+    g.name AS genres,
+    t.tags AS tag_name
+FROM movies_staging m
+JOIN genres_movies_staging gm ON gm.movie_id = m.movie_id
+JOIN genres_staging g ON g.genres_id = gm.genre_id
+LEFT JOIN tags_staging t ON t.movie_id = m.movie_id;
+```
+
 Dimenzia `dim_date` je navrhnutá tak, aby uchovávala informácie o dátumoch hodnotení filmov. Obsahuje odvodené údaje, ako sú deň, mesiac (v textom aj číselnom formáte), rok, deň v týždni (v textovom aj číselnom formáte). Táto dimenzia je štruktúrovaná tak, aby umožňovala podrobné časové analýzy, ako sú trendy hodnotení podľa dní, mesiacov alebo rokov. Z hľadiska SCD je táto dimenzia klasifikovaná ako SCD Typ 0. To znamená, že existujúce záznamy v tejto dimenzii sú nemenné a uchovávajú statické informácie.
 
 V prípade, že by bolo potrebné sledovať zmeny súvisiace s odvodenými atribútmi (napr. pracovné dni vs. sviatky), bolo by možné prehodnotiť klasifikáciu na SCD Typ 1 (aktualizácia hodnôt) alebo SCD Typ 2 (uchovávanie histórie zmien). V aktuálnom modeli však táto potreba neexistuje, preto je `dim_date` navrhnutá ako SCD Typ 0 s rozširovaním o nové záznamy podľa potreby.
@@ -130,7 +189,17 @@ GROUP BY rated_at,
          DATE_PART(week, rated_at), 
          DATE_PART(dow, rated_at);
 ```
-Podobne `dim_movies` obsahuje údaje o filmoch, ako sú názov, rok vydania a žánre. Táto dimenzia je typu SCD Typ 0, pretože údaje o filmoch sú považované za nemenné, napríklad názov filmu sa nemení. 
+
+Dimenzia `dim_time` je navrhnutá tak, aby udržiavala časový údaj hodnotenia a samotnú hodinu hodnotenia, Z hľadiska SCD je táto dimenzia klasifikovaná ako SCD Typ 0. To znamená, že existujúce záznamy v tejto dimenzii sú nemenné a uchovávajú statické informácie.
+```sql
+CREATE TABLE dim_time AS
+SELECT DISTINCT
+    ROW_NUMBER() OVER (ORDER BY DATE_TRUNC('HOUR', r.rated_at)) AS dim_timeID,
+    TO_TIMESTAMP(r.rated_at) AS time,
+    TO_NUMBER(TO_CHAR(r.rated_at, 'HH24')) AS hour
+FROM ratings_staging r
+GROUP BY r.rated_at;
+```
 
 Faktová tabuľka `fact_ratings` obsahuje záznamy o hodnoteniach a prepojenia na všetky dimenzie. Obsahuje kľúčové metriky, ako je hodnota hodnotenia a časový údaj.
 ```sql
@@ -170,7 +239,7 @@ ETL proces v Snowflake umožnil spracovanie pôvodných dát z `.csv` formátu d
 
 ## **4 Vizualizácia dát**
 
-Dashboard obsahuje `6 vizualizácií`, ktoré poskytujú základný prehľad o kľúčových metrikách a trendoch týkajúcich sa filmov, používateľov a hodnotení. Tieto vizualizácie odpovedajú na dôležité otázky a umožňujú lepšie pochopiť správanie používateľov a ich preferencie.
+Dashboard obsahuje `5 vizualizácií`, ktoré poskytujú základný prehľad o kľúčových metrikách a trendoch týkajúcich sa filmov, používateľov a hodnotení. Tieto vizualizácie odpovedajú na dôležité otázky a umožňujú lepšie pochopiť správanie používateľov a ich preferencie.
 
 <p align="center">
   <img src="https://github.com/filippresnajder/movielens/blob/main/movielens_dashboard.png" alt="Dashboard">
@@ -179,78 +248,57 @@ Dashboard obsahuje `6 vizualizácií`, ktoré poskytujú základný prehľad o k
 </p>
 
 ---
-### **Graf 1: 10 Najviac hodnotených filmov**
-Táto vizualizácia zobrazuje 10 filmov s najväčším počtom hodnotení. Umožňuje identifikovať najpopulárnejšie filmy medzi používateľmi. Z grafu vieme zistiť napríklad, že filmy Star Wars sú najviac hodnotené, na základe tohoto môžeme spraviť odporúčania pre napr. jednotlivé série filmov.
-
-```sql
-SELECT m.title AS Movie_Name, COUNT(ratingid) AS Total_Ratings
-FROM fact_ratings f
-JOIN dim_movies m ON m.movie_id = f.movie_id
-GROUP BY Movie_Name
-ORDER BY Total_Ratings DESC
-LIMIT 10;
-```
----
-### **Graf 2: Podiel hodnotení podľa pohlaví**
+### **Graf 1: Počet hodnotení pre jednotlivé pohlavie**
 Graf znázorňuje rozdiely v počte hodnotení medzi mužmi a ženami. Z údajov je zrejmé, že muži hodnotili filmy výrazne viac. Táto vizualizácia ukazuje, že obsah alebo kampane by museli byť zamerané skôr na jedno pohlavie, prípadne by bolo možné aj zamerať kampaň na získanie viac používateľov ženského pohlavia.
 
 ```sql
-SELECT u.gender, COUNT(r.ratingid) AS Pocet
-FROM fact_ratings r
-JOIN dim_users u ON u.dim_userid = r.user_id
-GROUP BY u.gender;
+SELECT d.gender AS Pohlavie, COUNT(f.ratingid) AS Pocet
+FROM fact_ratings f
+JOIN dim_users d ON d.dim_userid = f.user_id
+GROUP BY Pohlavie;
 ```
 ---
-### **Graf 3: 15 Najlepšie hodnotených filmov podľa priemerného hodnotenia**
-Graf ukazuje, ktoré filmy boli najlepšie hodnotené na základe priemerného hodnotenia, z vizualizácie je vidieť, že filmov s perfektným hodnotením je málo. Tento trend môže naznačovať kvalitu filmov, ktoré môžu byť odporúčané používateľom na ich zhliadnutie.
+### **Graf 2: Najlepšie hodnotené filmy so 100 alebo viac hodnoteniami (Top 10)**
+Graf znázorňuje 10 najlepšie hodnotených filmov (ktoré majú aspoň 100 alebo viac hodnotení, aby sa vyhlo filmom, ktoré by mali napríklad len 10 hodnotení, ktoré by nemuseli byť dostatočné na usúdenie kvality filmu). Vizualizácia ukazuje filmy a ich priemerné hodnotenie, na základe tejto vizualizácie dokážeme určiť, ktoré filmy sa páčili ľudom najviac a vieme ich prípadne odporúčiť novým uživateľom.
 
 ```sql
-SELECT m.title AS Film, ROUND(AVG(r.rating),2) AS Priemerne_Hodnotenie
-FROM fact_ratings r
-JOIN dim_movies m ON m.movie_id = r.movie_id
-GROUP BY Film
-ORDER BY Priemerne_Hodnotenie DESC
-LIMIT 15;
+SELECT m.title AS Film, ROUND(AVG(f.rating), 2) Hodnotenie
+FROM fact_ratings f
+JOIN dim_movies m ON m.movie_id = f.movie_id
+GROUP BY Film HAVING COUNT(f.movie_id) >= 100
+ORDER BY Hodnotenie DESC LIMIT 10;
 ```
 ---
-### **Graf 4: Povolania, ktoré hodnotili filmy najviac**
-Tento graf poskytuje informácie o piatich povolaní, ktoré hodnotia filmy najviac. Umožňuje zistovať, ktoré profesie najviac hodnototia a sledujú filmy a ako môžu byť tieto skupiny zacielené pri vytváraní personalizovaných odporúčaní. Z údajov je zrejmé, že najaktívnejšími profesijnými skupinami sú `Educator` a `Executive`, ak odmyslíme ľudí, ktorí buď nemajú alebo majú nezahrnuté povolanie. 
+### **Graf 3: Počet hodnotení v jednotlivých hodinách dňa**
+Graf ukazuje, v ktorých hodinách sú uživatelia najaktívnejší, z grafu sa dá jednoznačne vyčítať, že úžívatelia sú najaktívnejší vo večerných a skorých ranných hodinách s tendenciou klesania až po obed a následne od obeda počet hodnotení stúpa. Tieto údaje vieme využiť pre prípadne určenie časových intervalov, kedy by sme mali aktualizovať stránky o nový obsah.
 
 ```sql
-SELECT u.occupation AS Povolanie, COUNT(r.ratingid) AS Pocet
-FROM fact_ratings r
-JOIN dim_users u ON u.dim_userid = r.user_id
-GROUP BY Povolanie
-ORDER BY Pocet DESC
-LIMIT 5;
+SELECT t.hour AS Hodina, COUNT(f.ratingid) AS Pocet
+FROM fact_ratings f
+JOIN dim_time t ON t.dim_timeid = f.time_id
+GROUP BY Hodina
+ORDER BY POCET DESC;
 ```
 ---
-### **Graf 5: Najaktívnejšie mesiace na základe hodnotenia**
-Tento graf ukazuje, v ktorých mesiacov sú uživateľia najviac aktívny. Z grafu vieme usúdiť,
-že v mesiaci November sú používateľia suverénne najviac aktívny. Na základe týchto údajov vieme
-nastaviť v akom období, budeme propagovať filmy najviac alebo kedy sa nám oplatí aplikovať
-naše marketingové stratégie v praxi.
+### **Graf 4: Počet hodnotení v jednotlivých dňoch týždňa**
+Tento graf poskytuje informácie o aktivite používateľov v jednotlivých dňoch týždňa. Z grafu vieme vyčítať, že používatelia sú najaktívnejší v Utorok a potom v Stredu. Na základe týchto dát a dát s časovými údajmi dokážeme predpovedať čas, kedy by mali byť stránky najaktívnejšie a k tomu prispôsobiť našu stratégiu (napr. aktualizácia kontentu).
 
 ```sql
-SELECT d.month_string AS Mesiac, COUNT(r.ratingid) AS Pocet
-FROM fact_ratings r
-JOIN dim_date d ON d.dim_dateid = r.date_id
-GROUP BY Mesiac
-ORDER BY Pocet DESC;
+SELECT d.day_of_week_string AS Den, COUNT(f.ratingid)
+FROM fact_ratings f
+JOIN dim_date d ON d.dim_dateid = f.date_id
+GROUP BY Den;
 ```
 ---
-### **Graf 6: Rozdelenie hodnotení podľa vekových kategórii v daných časových údajoch**
-Tento stĺpcový graf ukazuje, ako sa aktivita používateľov mení počas dňa (dopoludnia vs. popoludnia) a ako sa líši medzi rôznymi vekovými skupinami. Z grafu vyplýva, že vekové kategórie v rozmedzí 25 až 34 rokov sú s prehľadom najviac aktívne a následne, čím je veková kategória staršia, tým aj klesá aj počet hodnotení. Tieto informácie môžu pomôcť lepšie zacieliť obsah a naplánovať ho pre jednotlivé vekové kategórie.
-```sql
-SELECT t.ampm AS Casovy_Udaj,
-       u.age_group AS Vekova_Kategoria,
-       COUNT(r.ratingid) AS Pocet
-FROM fact_ratings r
-JOIN dim_users u ON u.dim_userid = r.user_id
-JOIN dim_time t ON t.dim_timeid = r.time_id
-GROUP BY casovy_udaj, vekova_kategoria
-ORDER BY casovy_udaj, Pocet DESC;
+### **Graf 5: Najlepšie hodnotené žánre (Top 10)**
+Tento graf ukazuje 10 žánrov, ktoré sú najlepšie hodnotené medzi úživateľmi v priemernom hodnotení. Tieto údaje vieme využiť napríklad na stratégiu odporúčania filmov s týmito žánrami pre nových uživateľov.
 
+```sql
+SELECT m.genres AS Zaner, ROUND(AVG(f.rating), 2) Hodnotenie
+FROM fact_ratings f
+JOIN dim_movies m ON m.movie_id = f.movie_id
+GROUP BY Zaner
+ORDER BY Hodnotenie DESC LIMIT 10;
 ```
 
 Dashboard poskytuje komplexný pohľad na dáta, pričom zodpovedá dôležité otázky týkajúce sa sledovateľských preferencií a správania používateľov. Vizualizácie umožňujú jednoduchú interpretáciu dát a môžu byť využité na optimalizáciu odporúčacích systémov, marketingových stratégií a filmových služieb.
