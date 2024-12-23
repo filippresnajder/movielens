@@ -84,6 +84,7 @@ Navrhnutý bol **hviezdicový model (star schema)**, pre efektívnu analýzu kde
 Štruktúra hviezdicového modelu je znázornená na diagrame nižšie. Diagram ukazuje prepojenia medzi faktovou tabuľkou a dimenziami, čo zjednodušuje pochopenie a implementáciu modelu.
 
 <p align="center">
+  <br>
   <img src="https://github.com/filippresnajder/movielens/blob/main/star_schema.png" alt="Star Schema">
   <br>
   <em>Obrázok 2 Schéma hviezdy pre MovieLens</em>
