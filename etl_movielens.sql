@@ -75,15 +75,18 @@ CREATE OR REPLACE STAGE my_stage;
 -- Copying data into staging tables from csv file
 COPY INTO occupations_staging
 FROM @my_stage/occupations.csv
-FILE_FORMAT = (TYPE = 'CSV' FIELD_OPTIONALLY_ENCLOSED_BY = '"');
+FILE_FORMAT = (TYPE = 'CSV' FIELD_OPTIONALLY_ENCLOSED_BY = '"')
+ON_ERROR = 'CONTINUE';
 
 COPY INTO age_group_staging
 FROM @my_stage/age_group.csv
-FILE_FORMAT = (TYPE = 'CSV' FIELD_OPTIONALLY_ENCLOSED_BY = '"');
+FILE_FORMAT = (TYPE = 'CSV' FIELD_OPTIONALLY_ENCLOSED_BY = '"')
+ON_ERROR = 'CONTINUE';
 
 COPY INTO genres_staging
 FROM @my_stage/genres.csv
-FILE_FORMAT = (TYPE = 'CSV' FIELD_OPTIONALLY_ENCLOSED_BY = '"');
+FILE_FORMAT = (TYPE = 'CSV' FIELD_OPTIONALLY_ENCLOSED_BY = '"')
+ON_ERROR = 'CONTINUE';
 
 COPY INTO users_staging
 FROM @my_stage/users.csv
@@ -92,15 +95,18 @@ ON_ERROR = 'CONTINUE';
 
 COPY INTO movies_staging
 FROM @my_stage/movies.csv
-FILE_FORMAT = (TYPE = 'CSV' FIELD_OPTIONALLY_ENCLOSED_BY = '"');
+FILE_FORMAT = (TYPE = 'CSV' FIELD_OPTIONALLY_ENCLOSED_BY = '"')
+ON_ERROR = 'CONTINUE';
 
 COPY INTO tags_staging
 FROM @my_stage/tags.csv
-FILE_FORMAT = (TYPE = 'CSV' FIELD_OPTIONALLY_ENCLOSED_BY = '"');
+FILE_FORMAT = (TYPE = 'CSV' FIELD_OPTIONALLY_ENCLOSED_BY = '"')
+ON_ERROR = 'CONTINUE';
 
 COPY INTO genres_movies_staging
 FROM @my_stage/genres_movies.csv
-FILE_FORMAT = (TYPE = 'CSV' FIELD_OPTIONALLY_ENCLOSED_BY = '"');
+FILE_FORMAT = (TYPE = 'CSV' FIELD_OPTIONALLY_ENCLOSED_BY = '"')
+ON_ERROR = 'CONTINUE';
 
 COPY INTO ratings_staging
 FROM @my_stage/ratings.csv
@@ -125,27 +131,20 @@ SELECT DISTINCT
     m.movie_id AS movie_id,
     m.title AS title,
     m.release_year AS release_year,
-    g.name AS genres
+    g.name AS genres,
+    t.tags AS tag_name
 FROM movies_staging m
 JOIN genres_movies_staging gm ON gm.movie_id = m.movie_id
-JOIN genres_staging g ON g.genres_id = gm.genre_id;
+JOIN genres_staging g ON g.genres_id = gm.genre_id
+LEFT JOIN tags_staging t ON t.movie_id = m.movie_id;
 
 CREATE TABLE dim_time AS
 SELECT DISTINCT
-    ROW_NUMBER() OVER (ORDER BY DATE_TRUNC('HOUR', rated_at)) AS dim_timeID,
+    ROW_NUMBER() OVER (ORDER BY DATE_TRUNC('HOUR', r.rated_at)) AS dim_timeID,
     TO_TIMESTAMP(r.rated_at) AS time,
-    CASE
-        WHEN TO_NUMBER(TO_CHAR(rated_at, 'HH24')) = 0 THEN 12
-        WHEN TO_NUMBER(TO_CHAR(rated_at, 'HH24')) <= 12 THEN                
-        TO_NUMBER(TO_CHAR(rated_at, 'HH24'))
-        ELSE TO_NUMBER(TO_CHAR(rated_at, 'HH24')) - 12
-    END AS hour,                                                              
-    CASE
-        WHEN TO_NUMBER(TO_CHAR(rated_at, 'HH24')) < 12 THEN 'AM'
-        ELSE 'PM'
-    END AS ampm
+    TO_NUMBER(TO_CHAR(r.rated_at, 'HH24')) AS hour
 FROM ratings_staging r
-GROUP BY rated_at;
+GROUP BY r.rated_at;
 
 CREATE TABLE dim_date AS
 SELECT
@@ -212,3 +211,6 @@ DROP TABLE movies_staging;
 DROP TABLE tags_staging;
 DROP TABLE genres_movies_staging;
 DROP TABLE ratings_staging;
+
+
+
